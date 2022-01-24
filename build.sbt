@@ -21,6 +21,5 @@ build := {
   dependencyUpdates.value
   scalafmtAll.value
   scalafixAll.toTask("").value
-  (Compile / compile).value
   (Test / test).value
 }
