@@ -1,26 +1,27 @@
 package stream
 
 sealed trait Stream[A] {
-  import Stream._
-  // Combinator
-  def map[B](f: A => B): Stream[B] =
-    Map(this, f)
+    import Stream._
 
-  // Interpreter
-  def foldLeft[B](z: B)(f: (B, A) => B): B =
-    next match {
-      case Some(value) => foldLeft(f(z, value))(f)
-      case None        => z
-    }
+    def map[B](f: A => B): Stream[B] =
+        Map(this, f)
 
-  private[stream] def next: Option[A]
+    def foldLeft[B](z: B)(f: (B, A) => B): B =
+        this.next match {
+            case Some(value) => foldLeft(f(z, value))(f)
+            case None => z
+        }
+
+    def next: Option[A] =
+        this match {
+            case Emit(values) => values.nextOption()
+            case Map(source, f) => source.next.map(f)
+        }
+
 }
 object Stream {
-  final case class Map[A, B](source: Stream[A], func: A => B)
-      extends Stream[B] {}
-  final case class Emit[A](values: Iterator[A]) extends Stream[A] {}
+    final case class Map[A, B](source: Stream[A], f: A => B) extends Stream[B]
+    final case class Emit[A](values: Iterator[A]) extends Stream[A]
 
-  // Constructor
-  def emit[A](values: Iterator[A]): Stream[A] =
-    Emit(values)
+    def emit[A](values: Iterator[A]): Stream[A] = Emit(values)
 }
