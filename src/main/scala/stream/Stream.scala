@@ -18,7 +18,7 @@ sealed trait Stream[A] {
     Map(this, f)
 
   def merge[B](that: Stream[B]): Stream[Either[A, B]] =
-    ???
+    Merge(this, that)
 
   def zip[B](that: Stream[B]): Stream[(A, B)] =
     ???
@@ -32,30 +32,40 @@ sealed trait Stream[A] {
       case Halt         => z
     }
 
-  def next: Response[A] =
-    this match {
-      case Constant(value) => Value(value)
-      case Emit(values) =>
-        if (values.hasNext) Response.value(values.next())
-        else Response.halt
-      case Map(source, f) => source.next.map(f)
-      case Filter(source, pred) =>
-        source.next match {
-          case Value(value) =>
-            if (pred(value)) Value(value)
-            else Response.await
-          case Await => Await
-          case Halt  => Halt
-        }
-      case Interleave(left, right) =>
-        // We would ideally alternate between left and right but we don't yet
-        // know how to add state to our interpreter
-        left.next match {
-          case Value(value) => Value(value)
-          case Await        => right.next
-          case Halt         => right.next
-        }
-    }
+  def next: Response[A] = {
+    def helper[B](stream: Stream[B]): Response[B] =
+      stream match {
+        case Constant(value) => Value(value)
+        case Emit(values) =>
+          if (values.hasNext) Response.value(values.next())
+          else Response.halt
+        case Map(source, f) => source.next.map(f)
+        case Filter(source, pred) =>
+          source.next match {
+            case Value(value) =>
+              if (pred(value)) Value(value)
+              else Response.await
+            case Await => Await
+            case Halt  => Halt
+          }
+        case Interleave(left, right) =>
+          // We would ideally alternate between left and right but we don't yet
+          // know how to add state to our interpreter
+          left.next match {
+            case Value(value) => Value(value)
+            case Await        => right.next
+            case Halt         => right.next
+          }
+        case m: Merge[a, b] =>
+          // We would ideally alternate between left and right but we don't yet
+          // know how to add state to our interpreter
+          m.left.next
+            .map[Either[a, b]](Left(_))
+            .orElse(m.right.next.map(Right(_)))
+      }
+
+    helper(this)
+  }
 
   def toList: List[A] =
     foldLeft(List.empty[A])((lst, elt) => elt :: lst).reverse
@@ -69,6 +79,8 @@ object Stream {
       extends Stream[A]
   final case class Interleave[A](left: Stream[A], right: Stream[A])
       extends Stream[A]
+  final case class Merge[A, B](left: Stream[A], right: Stream[B])
+      extends Stream[Either[A, B]]
 
   /** Creates an infinite Stream that always produces the given value */
   def constant[A](value: A): Stream[A] = Constant(value)
