@@ -1,10 +1,8 @@
 package stream
-import stream.Response.Value
-import stream.Response.Await
-import stream.Response.Halt
 
 sealed trait Stream[A] {
   import Stream._
+  import Response._
 
   // Combinators
 
