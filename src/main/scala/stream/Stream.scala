@@ -12,7 +12,7 @@ sealed trait Stream[A] {
     Filter(this, pred)
 
   def interleave(that: Stream[A]): Stream[A] =
-    ???
+    Interleave(this, that)
 
   def map[B](f: A => B): Stream[B] =
     Map(this, f)
@@ -34,6 +34,7 @@ sealed trait Stream[A] {
 
   def next: Response[A] =
     this match {
+      case Constant(value) => Value(value)
       case Emit(values) =>
         if (values.hasNext) Response.value(values.next())
         else Response.halt
@@ -46,6 +47,14 @@ sealed trait Stream[A] {
           case Await => Await
           case Halt  => Halt
         }
+      case Interleave(left, right) =>
+        // We would ideally alternate between left and right but we don't yet
+        // know how to add state to our interpreter
+        left.next match {
+          case Value(value) => Value(value)
+          case Await        => right.next
+          case Halt         => right.next
+        }
     }
 
   def toList: List[A] =
@@ -53,12 +62,15 @@ sealed trait Stream[A] {
 
 }
 object Stream {
-  final case class Map[A, B](source: Stream[A], f: A => B) extends Stream[B]
+  final case class Constant[A](value: A) extends Stream[A]
   final case class Emit[A](values: Iterator[A]) extends Stream[A]
+  final case class Map[A, B](source: Stream[A], f: A => B) extends Stream[B]
   final case class Filter[A](source: Stream[A], pred: A => Boolean)
+      extends Stream[A]
+  final case class Interleave[A](left: Stream[A], right: Stream[A])
       extends Stream[A]
 
   /** Creates an infinite Stream that always produces the given value */
-  def constant[A](value: A): Stream[A] = ???
+  def constant[A](value: A): Stream[A] = Constant(value)
   def emit[A](values: Iterator[A]): Stream[A] = Emit(values)
 }
