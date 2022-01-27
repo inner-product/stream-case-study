@@ -4,6 +4,7 @@ import munit._
 import org.scalacheck.Prop._
 
 class StreamSuite extends ScalaCheckSuite {
+  import Response.Value
   import Generators._
 
   property("emit emits all given values") {
@@ -77,8 +78,8 @@ class StreamSuite extends ScalaCheckSuite {
           .filter(x => x > 1)
           .interleave(Stream.emit(List(expected1, expected2).iterator))
 
-      val Some(result1) = stream.next
-      val Some(result2) = stream.next
+      val Value(result1) = stream.next
+      val Value(result2) = stream.next
 
       assertEquals(result1, expected1)
       assertEquals(result2, expected2)
@@ -109,8 +110,8 @@ class StreamSuite extends ScalaCheckSuite {
           .filter(x => x > 1)
           .merge(Stream.emit(List(expected1, expected2).iterator))
 
-      val Some(Right(result1)) = stream.next
-      val Some(Right(result2)) = stream.next
+      val Value(Right(result1)) = stream.next
+      val Value(Right(result2)) = stream.next
 
       assertEquals(result1, expected1)
       assertEquals(result2, expected2)

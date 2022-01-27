@@ -1,4 +1,7 @@
 package stream
+import stream.Response.Value
+import stream.Response.Await
+import stream.Response.Halt
 
 sealed trait Stream[A] {
   import Stream._
@@ -6,7 +9,7 @@ sealed trait Stream[A] {
   // Combinators
 
   def filter(pred: A => Boolean): Stream[A] =
-    ???
+    Filter(this, pred)
 
   def interleave(that: Stream[A]): Stream[A] =
     ???
@@ -24,14 +27,25 @@ sealed trait Stream[A] {
 
   def foldLeft[B](z: B)(f: (B, A) => B): B =
     this.next match {
-      case Some(value) => foldLeft(f(z, value))(f)
-      case None        => z
+      case Value(value) => foldLeft(f(z, value))(f)
+      case Await        => foldLeft(z)(f)
+      case Halt         => z
     }
 
-  def next: Option[A] =
+  def next: Response[A] =
     this match {
-      case Emit(values)   => values.nextOption()
+      case Emit(values) =>
+        if (values.hasNext) Response.value(values.next())
+        else Response.halt
       case Map(source, f) => source.next.map(f)
+      case Filter(source, pred) =>
+        source.next match {
+          case Value(value) =>
+            if (pred(value)) Value(value)
+            else Response.await
+          case Await => Await
+          case Halt  => Halt
+        }
     }
 
   def toList: List[A] =
@@ -41,6 +55,8 @@ sealed trait Stream[A] {
 object Stream {
   final case class Map[A, B](source: Stream[A], f: A => B) extends Stream[B]
   final case class Emit[A](values: Iterator[A]) extends Stream[A]
+  final case class Filter[A](source: Stream[A], pred: A => Boolean)
+      extends Stream[A]
 
   /** Creates an infinite Stream that always produces the given value */
   def constant[A](value: A): Stream[A] = ???
