@@ -78,8 +78,9 @@ class StreamSuite extends ScalaCheckSuite {
           .filter(x => x > 1)
           .interleave(Stream.emit(List(expected1, expected2).iterator))
 
-      val Value(result1) = stream.next
-      val Value(result2) = stream.next
+      val ir = stream.compile
+      val Value(result1) = ir.next()
+      val Value(result2) = ir.next()
 
       assertEquals(result1, expected1)
       assertEquals(result2, expected2)
@@ -110,8 +111,9 @@ class StreamSuite extends ScalaCheckSuite {
           .filter(x => x > 1)
           .merge(Stream.emit(List(expected1, expected2).iterator))
 
-      val Value(Right(result1)) = stream.next
-      val Value(Right(result2)) = stream.next
+      val ir = stream.compile
+      val Value(Right(result1)) = ir.next()
+      val Value(Right(result2)) = ir.next()
 
       assertEquals(result1, expected1)
       assertEquals(result2, expected2)

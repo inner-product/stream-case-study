@@ -1,7 +1,7 @@
 package stream
-import stream.Response.Value
 import stream.Response.Await
 import stream.Response.Halt
+import stream.Response.Value
 
 sealed trait Stream[A] {
   import Stream._
@@ -21,51 +21,23 @@ sealed trait Stream[A] {
     Merge(this, that)
 
   def zip[B](that: Stream[B]): Stream[(A, B)] =
-    ???
+    Zip(this, that)
 
   // Interpreters
 
-  def foldLeft[B](z: B)(f: (B, A) => B): B =
-    this.next match {
-      case Value(value) => foldLeft(f(z, value))(f)
-      case Await        => foldLeft(z)(f)
-      case Halt         => z
-    }
-
-  def next: Response[A] = {
-    def helper[B](stream: Stream[B]): Response[B] =
-      stream match {
-        case Constant(value) => Value(value)
-        case Emit(values) =>
-          if (values.hasNext) Response.value(values.next())
-          else Response.halt
-        case Map(source, f) => source.next.map(f)
-        case Filter(source, pred) =>
-          source.next match {
-            case Value(value) =>
-              if (pred(value)) Value(value)
-              else Response.await
-            case Await => Await
-            case Halt  => Halt
-          }
-        case Interleave(left, right) =>
-          // We would ideally alternate between left and right but we don't yet
-          // know how to add state to our interpreter
-          left.next match {
-            case Value(value) => Value(value)
-            case Await        => right.next
-            case Halt         => right.next
-          }
-        case m: Merge[a, b] =>
-          // We would ideally alternate between left and right but we don't yet
-          // know how to add state to our interpreter
-          m.left.next
-            .map[Either[a, b]](Left(_))
-            .orElse(m.right.next.map(Right(_)))
+  def foldLeft[B](z: B)(f: (B, A) => B): B = {
+    def loop(ir: Ir[A]): B =
+      ir.next() match {
+        case Value(value) => foldLeft(f(z, value))(f)
+        case Await        => foldLeft(z)(f)
+        case Halt         => z
       }
 
-    helper(this)
+    loop(Ir.compile(this))
   }
+
+  def compile: Ir[A] =
+    Ir.compile(this)
 
   def toList: List[A] =
     foldLeft(List.empty[A])((lst, elt) => elt :: lst).reverse
@@ -81,8 +53,11 @@ object Stream {
       extends Stream[A]
   final case class Merge[A, B](left: Stream[A], right: Stream[B])
       extends Stream[Either[A, B]]
+  final case class Zip[A, B](left: Stream[A], right: Stream[B])
+      extends Stream[(A, B)]
 
   /** Creates an infinite Stream that always produces the given value */
   def constant[A](value: A): Stream[A] = Constant(value)
   def emit[A](values: Iterator[A]): Stream[A] = Emit(values)
+
 }
