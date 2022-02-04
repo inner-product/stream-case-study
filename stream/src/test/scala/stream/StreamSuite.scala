@@ -158,7 +158,7 @@ class StreamSuite extends ScalaCheckSuite {
     }
   }
 
-  property("waitOnce waits once and then halts") {
+  test("waitOnce waits once and then halts") {
     val stream = Stream.waitOnce
     val ir = stream.compile
 
