@@ -14,7 +14,18 @@ sealed trait Response[+A] {
   def orElse[AA >: A](that: => Response[AA]): Response[AA] =
     this match {
       case v: Value[A] => v
-      case _           => that
+      case Await =>
+        that match {
+          case v: Value[AA] => v
+          case Await        => Await
+          case Halt         => Await
+        }
+      case Halt =>
+        that match {
+          case v: Value[AA] => v
+          case Await        => Await
+          case Halt         => Halt
+        }
     }
 }
 object Response {

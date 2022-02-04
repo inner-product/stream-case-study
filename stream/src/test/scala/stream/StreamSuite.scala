@@ -88,6 +88,18 @@ class StreamSuite extends ScalaCheckSuite {
   }
 
   property(
+    "interleave pulls all values from non-empty stream if other stream halts"
+  ) {
+    forAll { values: List[Int] =>
+      val left = Stream.emit(values.iterator).interleave(Stream.never)
+      val right = Stream.never.interleave(Stream.emit(values.iterator))
+
+      assertEquals(left.toList, values)
+      assertEquals(right.toList, values)
+    }
+  }
+
+  property(
     "merge emits all values from both streams in the order they occur"
   ) {
     forAll(genEvenList, genOddList) { (evens: List[Int], odds: List[Int]) =>
@@ -117,6 +129,14 @@ class StreamSuite extends ScalaCheckSuite {
 
       assertEquals(result1, expected1)
       assertEquals(result2, expected2)
+    }
+  }
+
+  property("append produces values from left and right sides in order") {
+    forAll { (left: List[Int], right: List[Int]) =>
+      val stream = Stream.emit(left.iterator) ++ Stream.emit(right.iterator)
+
+      assertEquals(stream.toList, left ++ right)
     }
   }
 }
