@@ -120,6 +120,17 @@ object Ir {
   case object Waiting extends Ir[Nothing] {
     def next(): Response[Nothing] = Response.await
   }
+  case object WaitOnce extends Ir[Nothing] {
+    var shouldWait = true
+
+    def next(): Response[Nothing] =
+      if (shouldWait) {
+        shouldWait = false
+        Await
+      } else {
+        Halt
+      }
+  }
 
   // Utility methods
   def compile[A](stream: Stream[A]): Ir[A] = {
@@ -138,6 +149,7 @@ object Ir {
       case Stream.Range(start, stop, step) => Ir.Range(start, stop, step)
       case Stream.Never                    => Ir.Never
       case Stream.Waiting                  => Ir.Waiting
+      case Stream.WaitOnce                 => Ir.WaitOnce
     }
   }
 }

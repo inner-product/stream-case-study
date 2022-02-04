@@ -67,6 +67,7 @@ object Stream {
       extends Stream[(A, B)]
   case object Never extends Stream[Nothing]
   case object Waiting extends Stream[Nothing]
+  case object WaitOnce extends Stream[Nothing]
 
   /** Creates an infinite Stream that always produces the given value */
   def constant[A](value: A): Stream[A] = Constant(value)
@@ -76,6 +77,9 @@ object Stream {
 
   /** A Stream that is always waiting for a value but never produces one. */
   val waiting: Stream[Nothing] = Waiting
+
+  /** A Stream that waits once and then halts */
+  val waitOnce: Stream[Nothing] = WaitOnce
 
   /** A Stream that produces a range of Ints from start (inclusive) to end
     * (exclusive)

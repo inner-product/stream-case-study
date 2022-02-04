@@ -139,4 +139,12 @@ class StreamSuite extends ScalaCheckSuite {
       assertEquals(stream.toList, left ++ right)
     }
   }
+
+  property("waitOnce waits once and then halts") {
+    val stream = Stream.waitOnce
+    val ir = stream.compile
+
+    assertEquals(ir.next(), Response.await)
+    assertEquals(ir.next(), Response.halt)
+  }
 }
