@@ -81,20 +81,70 @@ object Ir {
   final case class Merge[A, B](left: Ir[A], right: Ir[B])
       extends Ir[Either[A, B]] {
 
+    var leftHasHalted = false
+    var rightHasHalted = false
     var pullFromLeft: Boolean = true
 
     def next(): Response[Either[A, B]] =
-      if (pullFromLeft) {
+      if (leftHasHalted && rightHasHalted) Halt
+      else if (leftHasHalted) {
+        right.next() match {
+          case Value(value) => Value(Right(value))
+          case Await        => Await
+          case Halt =>
+            rightHasHalted = true
+            Halt
+        }
+      } else if (rightHasHalted) {
+        left.next() match {
+          case Value(value) => Value(Left(value))
+          case Await        => Await
+          case Halt =>
+            leftHasHalted = true
+            Halt
+        }
+      } else if (pullFromLeft) {
         pullFromLeft = false
         left.next() match {
           case Value(value) => Value(Left(value))
-          case _            => right.next().map(Right(_))
+          case Await =>
+            right.next() match {
+              case Value(value) => Value(Right(value))
+              case Await        => Await
+              case Halt =>
+                rightHasHalted = true
+                Await
+            }
+          case Halt =>
+            leftHasHalted = true
+            right.next() match {
+              case Value(value) => Value(Right(value))
+              case Await        => Await
+              case Halt =>
+                rightHasHalted = true
+                Halt
+            }
         }
       } else {
         pullFromLeft = true
         right.next() match {
           case Value(value) => Value(Right(value))
-          case _            => left.next().map(Left(_))
+          case Await =>
+            left.next() match {
+              case Value(value) => Value(Left(value))
+              case Await        => Await
+              case Halt =>
+                leftHasHalted = true
+                Await
+            }
+          case Halt =>
+            left.next() match {
+              case Value(value) => Value(Left(value))
+              case Await        => Await
+              case Halt =>
+                leftHasHalted = true
+                Halt
+            }
         }
       }
   }
@@ -120,7 +170,7 @@ object Ir {
   case object Waiting extends Ir[Nothing] {
     def next(): Response[Nothing] = Response.await
   }
-  case object WaitOnce extends Ir[Nothing] {
+  final case class WaitOnce() extends Ir[Nothing] {
     var shouldWait = true
 
     def next(): Response[Nothing] =
@@ -149,7 +199,7 @@ object Ir {
       case Stream.Range(start, stop, step) => Ir.Range(start, stop, step)
       case Stream.Never                    => Ir.Never
       case Stream.Waiting                  => Ir.Waiting
-      case Stream.WaitOnce                 => Ir.WaitOnce
+      case Stream.WaitOnce                 => Ir.WaitOnce()
     }
   }
 }

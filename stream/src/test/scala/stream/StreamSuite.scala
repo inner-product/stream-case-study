@@ -132,6 +132,24 @@ class StreamSuite extends ScalaCheckSuite {
     }
   }
 
+  test(
+    "merge doesn't halt if one stream is awaiting while the other stream has halted"
+  ) {
+    val stream1 =
+      Stream.waitOnce.append(Stream.emit(Iterator(1, 2, 3))).merge(Stream.never)
+    val result1 = stream1.toList
+
+    assert(result1.forall(x => x.isLeft))
+    assertEquals(result1.collect { case Left(x) => x }, List(1, 2, 3))
+
+    val stream2 =
+      Stream.never.merge(Stream.waitOnce.append(Stream.emit(Iterator(1, 2, 3))))
+    val result2 = stream2.toList
+
+    assert(result2.forall(x => x.isRight))
+    assertEquals(result2.collect { case Right(x) => x }, List(1, 2, 3))
+  }
+
   property("append produces values from left and right sides in order") {
     forAll { (left: List[Int], right: List[Int]) =>
       val stream = Stream.emit(left.iterator) ++ Stream.emit(right.iterator)
