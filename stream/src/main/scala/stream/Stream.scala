@@ -90,4 +90,5 @@ object Stream {
 
   def emit[A](values: Iterator[A]): Stream[A] = Emit(values)
 
+  def empty[A]: Stream[A] = ???
 }
