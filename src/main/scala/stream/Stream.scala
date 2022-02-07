@@ -29,5 +29,5 @@ sealed trait Stream[A] {
 object Stream {
   /** Creates an infinite Stream that always produces the given value */
   def constant[A](value: A): Stream[A] = ???
-  def emit[A](values: Iterator[A]): Stream[A] = Emit(values)
+  def emit[A](values: Iterator[A]): Stream[A] = ???
 }
