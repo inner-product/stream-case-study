@@ -1,6 +1,7 @@
 package stream
 
-import scala.annotation.tailrec
+import cats.effect.IO
+import cats.effect.unsafe.IORuntime
 
 sealed trait Stream[+A] {
   import Response._
@@ -34,14 +35,15 @@ sealed trait Stream[+A] {
 
   // Interpreters
 
-  def foldLeft[B](z: B)(f: (B, A) => B): B = {
-    @tailrec
-    def loop(ir: Ir[A], result: B): B =
-      ir.next() match {
-        case Value(value) => loop(ir, f(result, value))
-        case Await        => loop(ir, result)
-        case Halt         => result
-      }
+  def foldLeft[B](z: B)(f: (B, A) => B): IO[B] = {
+    def loop(ir: Ir[A], result: B): IO[B] =
+      ir.next.flatMap(r =>
+        r match {
+          case Value(value) => loop(ir, f(result, value))
+          case Await        => loop(ir, result)
+          case Halt         => IO.pure(result)
+        }
+      )
 
     loop(Ir.compile(this), z)
   }
@@ -49,8 +51,10 @@ sealed trait Stream[+A] {
   def compile: Ir[A] =
     Ir.compile(this)
 
-  def toList: List[A] =
-    foldLeft(List.empty[A])((lst, elt) => elt :: lst).reverse
+  def toList(implicit runtime: IORuntime): List[A] =
+    foldLeft(List.empty[A])((lst, elt) => elt :: lst)
+      .map(_.reverse)
+      .unsafeRunSync()
 
 }
 object Stream {

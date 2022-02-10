@@ -1,5 +1,6 @@
 package stream
 
+import cats.effect.unsafe.implicits.global
 import munit._
 import org.scalacheck.Prop._
 
@@ -79,11 +80,18 @@ class StreamSuite extends ScalaCheckSuite {
           .interleave(Stream.emit(List(expected1, expected2).iterator))
 
       val ir = stream.compile
-      val Value(result1) = ir.next()
-      val Value(result2) = ir.next()
+      val assertion = for {
+        r1 <- ir.next
+        r2 <- ir.next
+      } yield {
+        val Value(result1) = r1
+        val Value(result2) = r2
 
-      assertEquals(result1, expected1)
-      assertEquals(result2, expected2)
+        assertEquals(result1, expected1)
+        assertEquals(result2, expected2)
+      }
+
+      assertion.unsafeRunSync()
     }
   }
 
@@ -124,11 +132,18 @@ class StreamSuite extends ScalaCheckSuite {
           .merge(Stream.emit(List(expected1, expected2).iterator))
 
       val ir = stream.compile
-      val Value(Right(result1)) = ir.next()
-      val Value(Right(result2)) = ir.next()
+      val assertion = for {
+        r1 <- ir.next
+        r2 <- ir.next
+      } yield {
+        val Value(Right(result1)) = r1
+        val Value(Right(result2)) = r2
 
-      assertEquals(result1, expected1)
-      assertEquals(result2, expected2)
+        assertEquals(result1, expected1)
+        assertEquals(result2, expected2)
+      }
+
+      assertion.unsafeRunSync()
     }
   }
 
@@ -161,9 +176,15 @@ class StreamSuite extends ScalaCheckSuite {
   test("waitOnce waits once and then halts") {
     val stream = Stream.waitOnce
     val ir = stream.compile
+    val assertion = for {
+      r1 <- ir.next
+      r2 <- ir.next
+    } yield {
+      assertEquals(r1, Response.await)
+      assertEquals(r2, Response.halt)
+    }
 
-    assertEquals(ir.next(), Response.await)
-    assertEquals(ir.next(), Response.halt)
+    assertion.unsafeRunSync()
   }
 
   property("flatMap is equivalent to same method on List") {
