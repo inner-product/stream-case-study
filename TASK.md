@@ -1,5 +1,39 @@
-# Implement flatMap
+# Implement parallel operations
 
-1. Implement `flatMap`. There are tests to help you. You should be able to figure out the type signature of `flatMap` from the standard library, and the semantics from the tests.
+Terminology:
 
-2. Implement `empty` to complete the tests.
+Demand for a value (calls to `next`; pulls) flow upstream. Values (`Responses`) flow downstream. The most downstream point is responsible for producing the demand that drives the stream.
+
+
+1. Implement `parMapUnordered` with the following signature:
+
+   ```scala
+   def parMapUnordered[B](maxConcurrent: Int)(f: A => B): Stream[B]
+   ```
+    
+   This method is like map, except it has up to `maxConcurrent` (green) threads
+   running in parallel and resulting are emitted downstream in the order in
+   which they are available, not necessarily in the order in which they are
+   produced by the upstream.
+
+   Demand from the downstream may result in at moment `maxConcurrent` demands
+   upstream.
+
+
+2. Implement `parMap` with the following signature:
+
+   ```scala
+   def parMap[B](maxConcurrent: Int)(f: A => B): Stream[B]
+   ```
+    
+   This method is like `parMapUnordered` except values must be emitted
+   downstream in the order they arrive from the upstream.
+    
+3. Implement `parInterleave`
+
+   ```scala
+   def parInterleave(that: Stream[A]): Stream[A]
+   ```
+
+   which is like `interleave` except the interleaving is concurrent. The left
+   and right streams should race to produce a value.
