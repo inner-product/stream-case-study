@@ -14,6 +14,9 @@ sealed trait Stream[+A] {
   def ++[B >: A](that: Stream[B]): Stream[B] =
     this.append(that)
 
+  def flatMap[B](f: A => Stream[B]): Stream[B] =
+    FlatMap(this, f)
+
   def filter(pred: A => Boolean): Stream[A] =
     Filter(this, pred)
 
@@ -57,6 +60,8 @@ object Stream {
   final case class Emit[A](values: Iterator[A]) extends Stream[A]
   final case class Filter[A](source: Stream[A], pred: A => Boolean)
       extends Stream[A]
+  final case class FlatMap[A, B](source: Stream[A], f: A => Stream[B])
+      extends Stream[B]
   final case class Interleave[A](left: Stream[A], right: Stream[A])
       extends Stream[A]
   final case class Map[A, B](source: Stream[A], f: A => B) extends Stream[B]
@@ -89,6 +94,4 @@ object Stream {
     else Range(start, stop, -1)
 
   def emit[A](values: Iterator[A]): Stream[A] = Emit(values)
-
-  def empty[A]: Stream[A] = ???
 }

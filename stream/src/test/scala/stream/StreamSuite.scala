@@ -169,18 +169,18 @@ class StreamSuite extends ScalaCheckSuite {
   property("flatMap is equivalent to same method on List") {
     forAll { (values: List[Int]) =>
       val stream =
-        Stream.emit(values.iterator).flatMap(x => Stream.emit(values.iterator))
+        Stream.emit(values.iterator).flatMap(_ => Stream.emit(values.iterator))
 
-      assertEquals(stream.toList, values.flatMap(x => values))
+      assertEquals(stream.toList, values.flatMap(_ => values))
     }
   }
 
   property("flatMap to empty produces empty Stream") {
     forAll { (values: List[Int]) =>
       val stream =
-        Stream.emit(values.iterator).flatMap(x => Stream.empty)
+        Stream.emit(values.iterator).flatMap(_ => Stream.never)
 
-      assertEquals(stream.toList, values.flatMap(x => List.empty))
+      assertEquals(stream.toList, values.flatMap(_ => List.empty))
     }
   }
 }

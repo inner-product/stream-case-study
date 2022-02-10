@@ -48,9 +48,50 @@ object Ir {
       if (values.hasNext) Response.value(values.next())
       else Response.halt
   }
-  final case class Map[A, B](source: Ir[A], f: A => B) extends Ir[B] {
-    def next(): Response[B] =
-      source.next().map(f)
+  final case class FlatMap[A, B](source: Ir[A], f: A => Ir[B]) extends Ir[B] {
+    var sourceHasValues = true
+    var flatMapStream: Ir[B] = _
+    var flatMapStreamHasValues = false
+
+    def pullFromFlatMapStream(): Response[B] = {
+      flatMapStream.next() match {
+        case Value(value) => Value(value)
+        case Await        => Await
+        case Halt =>
+          flatMapStreamHasValues = false
+          source.next() match {
+            case Value(value) =>
+              flatMapStream = f(value)
+              flatMapStreamHasValues = true
+              pullFromFlatMapStream()
+            case Await => Await
+            case Halt =>
+              flatMapStreamHasValues = false
+              sourceHasValues = false
+              Halt
+          }
+      }
+    }
+
+    def next(): Response[B] = {
+      if (flatMapStreamHasValues) {
+        pullFromFlatMapStream()
+      } else if (sourceHasValues) {
+        source.next() match {
+          case Value(value) =>
+            flatMapStream = f(value)
+            flatMapStreamHasValues = true
+            pullFromFlatMapStream()
+          case Await => Await
+          case Halt =>
+            sourceHasValues = false
+            Halt
+        }
+      } else {
+        Halt
+      }
+
+    }
   }
   final case class Filter[A](source: Ir[A], pred: A => Boolean) extends Ir[A] {
     def next(): Response[A] =
@@ -77,6 +118,10 @@ object Ir {
         pullFromLeft = true
         pull(right, left)
       }
+  }
+  final case class Map[A, B](source: Ir[A], f: A => B) extends Ir[B] {
+    def next(): Response[B] =
+      source.next().map(f)
   }
   final case class Merge[A, B](left: Ir[A], right: Ir[B])
       extends Ir[Either[A, B]] {
@@ -149,7 +194,44 @@ object Ir {
       }
   }
   final case class Zip[A, B](left: Ir[A], right: Ir[B]) extends Ir[(A, B)] {
-    def next(): Response[(A, B)] = ???
+    var leftHasValues = true
+    var rightHasValues = true
+    var leftValue: Option[A] = None
+    var rightValue: Option[B] = None
+
+    def next(): Response[(A, B)] = {
+      if (leftHasValues && rightHasValues) {
+        if (leftValue.isEmpty) {
+          left.next() match {
+            case Value(value) => leftValue = Some(value)
+            case Await        => ()
+            case Halt         => leftHasValues = false
+          }
+        }
+
+        if (rightValue.isEmpty) {
+          right.next() match {
+            case Value(value) => rightValue = Some(value)
+            case Await        => ()
+            case Halt         => rightHasValues = false
+          }
+        }
+
+        (leftValue, rightValue) match {
+          case (Some(l), Some(r)) =>
+            val result = (l, r)
+            leftValue = None
+            rightValue = None
+            Value(result)
+
+          case _ =>
+            if (leftHasValues && rightHasValues) Await
+            else Halt
+        }
+      } else {
+        Halt
+      }
+    }
   }
   final case class Range(start: Int, stop: Int, step: Int) extends Ir[Int] {
     var current: Int = start
@@ -189,6 +271,8 @@ object Ir {
         Ir.Append(compile(left), compile(right))
       case Stream.Constant(value) => Ir.Constant(value)
       case Stream.Emit(values)    => Ir.Emit(values)
+      case f: Stream.FlatMap[a, b] =>
+        Ir.FlatMap(compile(f.source), (a: a) => compile(f.f(a)))
       // This pattern is necessary to get around a type inference bug
       case f: Stream.Filter[A] => Ir.Filter(compile(f.source), f.pred)
       case Stream.Interleave(left, right) =>
