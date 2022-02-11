@@ -11,12 +11,12 @@ Demand for a value (calls to `next`; pulls) flow upstream. Values (`Responses`) 
    def parMapUnordered[B](maxConcurrent: Int)(f: A => B): Stream[B]
    ```
     
-   This method is like map, except it has up to `maxConcurrent` (green) threads
-   running in parallel and resulting are emitted downstream in the order in
-   which they are available, not necessarily in the order in which they are
-   produced by the upstream.
+   This method is like map, except it has up to `maxConcurrent` concurrent
+   mapping functions running in parallel and results are emitted downstream in
+   the order in which they are available, not necessarily in the order in which
+   they are produced by the upstream.
 
-   Demand from the downstream may result in at moment `maxConcurrent` demands
+   Demand from the downstream may result in at most `maxConcurrent` demands
    upstream.
 
 
