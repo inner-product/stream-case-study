@@ -79,8 +79,9 @@ class StreamSuite extends ScalaCheckSuite {
           .filter(x => x > 1)
           .interleave(Stream.emit(List(expected1, expected2).iterator))
 
-      val ir = stream.compile
+      val compiled = stream.compile
       val assertion = for {
+        ir <- compiled
         r1 <- ir.next
         r2 <- ir.next
       } yield {
@@ -131,8 +132,9 @@ class StreamSuite extends ScalaCheckSuite {
           .filter(x => x > 1)
           .merge(Stream.emit(List(expected1, expected2).iterator))
 
-      val ir = stream.compile
+      val compiled = stream.compile
       val assertion = for {
+        ir <- compiled
         r1 <- ir.next
         r2 <- ir.next
       } yield {
@@ -175,8 +177,9 @@ class StreamSuite extends ScalaCheckSuite {
 
   test("waitOnce waits once and then halts") {
     val stream = Stream.waitOnce
-    val ir = stream.compile
+    val compiled = stream.compile
     val assertion = for {
+      ir <- compiled
       r1 <- ir.next
       r2 <- ir.next
     } yield {
@@ -185,23 +188,5 @@ class StreamSuite extends ScalaCheckSuite {
     }
 
     assertion.unsafeRunSync()
-  }
-
-  property("flatMap is equivalent to same method on List") {
-    forAll { (values: List[Int]) =>
-      val stream =
-        Stream.emit(values.iterator).flatMap(_ => Stream.emit(values.iterator))
-
-      assertEquals(stream.toList, values.flatMap(_ => values))
-    }
-  }
-
-  property("flatMap to empty produces empty Stream") {
-    forAll { (values: List[Int]) =>
-      val stream =
-        Stream.emit(values.iterator).flatMap(_ => Stream.never)
-
-      assertEquals(stream.toList, values.flatMap(_ => List.empty))
-    }
   }
 }

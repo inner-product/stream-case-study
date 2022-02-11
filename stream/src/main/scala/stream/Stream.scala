@@ -15,9 +15,6 @@ sealed trait Stream[+A] {
   def ++[B >: A](that: Stream[B]): Stream[B] =
     this.append(that)
 
-  def flatMap[B](f: A => Stream[B]): Stream[B] =
-    FlatMap(this, f)
-
   def filter(pred: A => Boolean): Stream[A] =
     Filter(this, pred)
 
@@ -29,6 +26,9 @@ sealed trait Stream[+A] {
 
   def merge[B](that: Stream[B]): Stream[Either[A, B]] =
     Merge(this, that)
+
+  def parMapUnordered[B](maxConcurrent: Int)(f: A => B): Stream[B] =
+    ParMapUnordered(this, maxConcurrent, f)
 
   def zip[B](that: Stream[B]): Stream[(A, B)] =
     Zip(this, that)
@@ -45,10 +45,10 @@ sealed trait Stream[+A] {
         }
       )
 
-    loop(Ir.compile(this), z)
+    Ir.compile(this).flatMap(ir => loop(ir, z))
   }
 
-  def compile: Ir[A] =
+  def compile: IO[Ir[A]] =
     Ir.compile(this)
 
   def toList(implicit runtime: IORuntime): List[A] =
@@ -64,13 +64,16 @@ object Stream {
   final case class Emit[A](values: Iterator[A]) extends Stream[A]
   final case class Filter[A](source: Stream[A], pred: A => Boolean)
       extends Stream[A]
-  final case class FlatMap[A, B](source: Stream[A], f: A => Stream[B])
-      extends Stream[B]
   final case class Interleave[A](left: Stream[A], right: Stream[A])
       extends Stream[A]
   final case class Map[A, B](source: Stream[A], f: A => B) extends Stream[B]
   final case class Merge[A, B](left: Stream[A], right: Stream[B])
       extends Stream[Either[A, B]]
+  final case class ParMapUnordered[A, B](
+      source: Stream[A],
+      maxConcurrent: Int,
+      f: A => B
+  ) extends Stream[B]
   final case class Range(start: Int, stop: Int, step: Int) extends Stream[Int]
   final case class Zip[A, B](left: Stream[A], right: Stream[B])
       extends Stream[(A, B)]
