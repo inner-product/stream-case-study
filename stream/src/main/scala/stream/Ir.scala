@@ -203,41 +203,70 @@ object Ir {
         }
       )
   }
+
   final case class ParMapUnordered[A, B](
       source: Ir[A],
       maxConcurrent: Int,
       f: A => B,
-      start: Semaphore[IO],
+      start: CountDownLatch[IO],
       queue: Queue[IO, Response[B]]
   ) extends Ir[B] {
-    def next: IO[Response[B]] =
-      start.releaseN(maxConcurrent.toLong) *> queue.take
+    val next: IO[Response[B]] =
+      start.release *> queue.take
   }
   object ParMapUnordered {
-    def worker[A, B](
-        source: Ir[A],
+    def mapWorker[A, B](
+        start: CountDownLatch[IO],
+        source: Queue[IO, Response[A]],
         f: A => B,
-        start: Semaphore[IO],
-        queue: Queue[IO, Response[B]]
-    ): IO[Unit] =
-      start.acquire *> source.next
-        .flatMap(r =>
-          r match {
-            case Value(value) => queue.offer(Response.value(f(value)))
-            case Await        => queue.offer(Await)
-            case Halt         => queue.offer(Halt) // TODO: Fix this
-          }
-        )
-        .flatMap(_ => worker(source, f, start, queue))
+        sink: Queue[IO, Response[B]],
+        stop: CyclicBarrier[IO]
+    ): IO[FiberIO[Unit]] = {
+      val act: IO[Unit] =
+        source.take
+          .flatMap(r =>
+            r match {
+              case Value(value) =>
+                sink.offer(Response.value(f(value)))
+              case Await => sink.offer(Await)
+              case Halt  => stop.await *> sink.offer(Halt)
+            }
+          )
+          .foreverM
+
+      (start.await *> act).start
+    }
+
+    def upstreamWorker[A](
+        start: CountDownLatch[IO],
+        source: Ir[A],
+        queue: Queue[IO, Response[A]]
+    ): IO[FiberIO[Unit]] = {
+      val act: IO[Unit] =
+        source.next
+          .flatMap(r =>
+            r match {
+              case v: Value[A] => queue.offer(v)
+              case Await       => queue.offer(Await)
+              case Halt        => queue.offer(Halt).foreverM
+            }
+          )
+          .foreverM
+
+      (start.await *> act).start
+    }
 
     def apply[A, B](source: Ir[A], maxConcurrent: Int, f: A => B): IO[Ir[B]] =
       for {
-        start <- Semaphore[IO](maxConcurrent.toLong)
-        queue <- Queue.bounded[IO, Response[B]](maxConcurrent)
+        start <- CountDownLatch[IO](1)
+        upstream <- Queue.bounded[IO, Response[A]](maxConcurrent)
+        downstream <- Queue.bounded[IO, Response[B]](maxConcurrent)
+        stop <- CyclicBarrier[IO](maxConcurrent)
+        _ <- upstreamWorker(start, source, upstream)
         _ <- List
-          .fill(maxConcurrent)(worker(source, f, start, queue))
-          .parSequence
-      } yield ParMapUnordered(source, maxConcurrent, f, start, queue)
+          .fill(maxConcurrent)(mapWorker(start, upstream, f, downstream, stop))
+          .sequence
+      } yield ParMapUnordered(source, maxConcurrent, f, start, downstream)
   }
 
   final case class Zip[A, B](left: Ir[A], right: Ir[B]) extends Ir[(A, B)] {

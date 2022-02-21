@@ -189,4 +189,13 @@ class StreamSuite extends ScalaCheckSuite {
 
     assertion.unsafeRunSync()
   }
+
+  property("parMapUnordered returns all values in the input") {
+    forAll { (values: List[Int]) =>
+      val stream = Stream.emit(values.iterator).parMapUnordered(5)(x => x)
+      val result = stream.toList
+
+      assertEquals(result.sorted, values.sorted)
+    }
+  }
 }
