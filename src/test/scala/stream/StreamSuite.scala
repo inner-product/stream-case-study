@@ -4,8 +4,6 @@ import munit._
 import org.scalacheck.Prop._
 
 class StreamSuite extends ScalaCheckSuite {
-  import Generators._
-
   property("emit emits all given values") {
     forAll { (values: List[Int]) =>
       val result = Stream
