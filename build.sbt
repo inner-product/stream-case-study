@@ -17,9 +17,11 @@ libraryDependencies ++= Seq(
 )
 
 lazy val build = taskKey[Unit]("Build everything")
-build := {
-  dependencyUpdates.value
-  scalafmtAll.value
-  scalafixAll.toTask("").value
-  (Test / test).value
-}
+build := Def
+  .sequential(
+    dependencyUpdates,
+    scalafmtAll,
+    scalafixAll.toTask(""),
+    (Test / test)
+  )
+  .value
