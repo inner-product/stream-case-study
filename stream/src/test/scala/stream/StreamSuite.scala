@@ -205,7 +205,7 @@ class StreamSuite extends ScalaCheckSuite {
       val stream: Stream[Int] = Stream.emit(values).reduceSemigroup
       val result = stream.toList
 
-      assertEquals(result, values.combineAll)
+      assertEquals(result, List(values.combineAll))
     }
   }
 
@@ -214,7 +214,7 @@ class StreamSuite extends ScalaCheckSuite {
       val stream: Stream[Int] = Stream.emit(values).reduceSemigroup
       val result = stream.toList
 
-      assertEquals(result, values.combineAll)
+      assertEquals(result, List(values.combineAll))
     }
   }
 
@@ -223,7 +223,7 @@ class StreamSuite extends ScalaCheckSuite {
       val stream: Stream[Int] = Stream.emit(values).foldMap(x => -x)
       val result = stream.toList
 
-      assertEquals(result, values.foldMap(x => -x))
+      assertEquals(result, List(values.foldMap(x => -x)))
     }
   }
 
@@ -233,7 +233,7 @@ class StreamSuite extends ScalaCheckSuite {
         Stream.emit(values).foldMap(x => Some(x))
       val result = stream.toList
 
-      assertEquals(result, values.foldMap[Option[Int]](x => Some(x)))
+      assertEquals(result, List(values.foldMap[Option[Int]](x => Some(x))))
     }
   }
 }
