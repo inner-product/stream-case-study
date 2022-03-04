@@ -44,17 +44,14 @@ object Ir {
     val next: IO[Response[A]] = IO.pure(Response.value(value))
   }
 
-  /** Semaphore is to avoid concurrenct access to the Iterator. It must have 1
-    * permit, allowing a single fiber to access the Iterator at any one time.
-    */
-  final case class Emit[A](values: Iterator[A], semaphore: Semaphore[IO])
-      extends Ir[A] {
+  final case class Emit[A](values: Seq[A]) extends Ir[A] {
+    val iterator = values.iterator
+
     val next: IO[Response[A]] =
-      semaphore.acquire *>
-        IO(
-          if (values.hasNext) Response.value(values.next())
-          else Response.halt
-        ) <* semaphore.release
+      IO(
+        if (iterator.hasNext) Response.value(iterator.next())
+        else Response.halt
+      )
   }
 
   final case class Filter[A](source: Ir[A], pred: A => Boolean) extends Ir[A] {
@@ -360,8 +357,8 @@ object Ir {
   def constant[A](value: A): IO[Ir[A]] =
     IO.pure(Constant(value))
 
-  def emit[A](values: Iterator[A]): IO[Ir[A]] =
-    Semaphore[IO](1).map(semaphore => Emit(values, semaphore))
+  def emit[A](values: Seq[A]): IO[Ir[A]] =
+    IO(Emit(values))
 
   def filter[A](source: Ir[A], pred: A => Boolean): IO[Ir[A]] =
     IO(Filter(source, pred))

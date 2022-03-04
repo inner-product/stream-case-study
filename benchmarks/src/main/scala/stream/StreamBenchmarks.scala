@@ -7,7 +7,7 @@ class StreamBenchmarks {
   @BenchmarkMode(Array(Mode.AverageTime))
   def multipleFilters(): Unit = {
     Stream
-      .emit(Iterator.range(0, 1000000))
+      .emit(Vector.range(0, 1000000))
       .filter(x => x > 1000)
       .filter(x => x < 10000)
       .foldLeft(0)(_ + _)

@@ -61,7 +61,7 @@ object Stream {
   final case class Append[A](first: Stream[A], second: Stream[A])
       extends Stream[A]
   final case class Constant[A](value: A) extends Stream[A]
-  final case class Emit[A](values: Iterator[A]) extends Stream[A]
+  final case class Emit[A](values: Seq[A]) extends Stream[A]
   final case class Filter[A](source: Stream[A], pred: A => Boolean)
       extends Stream[A]
   final case class Interleave[A](left: Stream[A], right: Stream[A])
@@ -84,14 +84,11 @@ object Stream {
   /** Creates an infinite Stream that always produces the given value */
   def constant[A](value: A): Stream[A] = Constant(value)
 
+  /** Create a stream that produces values in order from the given sequence */
+  def emit[A](values: Seq[A]): Stream[A] = Emit(values)
+
   /** A Stream that never produces a value and immediately halts. */
   val never: Stream[Nothing] = Never
-
-  /** A Stream that is always waiting for a value but never produces one. */
-  val waiting: Stream[Nothing] = Waiting
-
-  /** A Stream that waits once and then halts */
-  val waitOnce: Stream[Nothing] = WaitOnce
 
   /** A Stream that produces a range of Ints from start (inclusive) to end
     * (exclusive)
@@ -100,5 +97,9 @@ object Stream {
     if (start <= stop) Range(start, stop, 1)
     else Range(start, stop, -1)
 
-  def emit[A](values: Iterator[A]): Stream[A] = Emit(values)
+  /** A Stream that is always waiting for a value but never produces one. */
+  val waiting: Stream[Nothing] = Waiting
+
+  /** A Stream that waits once and then halts */
+  val waitOnce: Stream[Nothing] = WaitOnce
 }
