@@ -214,7 +214,7 @@ class StreamSuite extends ScalaCheckSuite {
 
   property("reduceSemigroup works with any type that has a semigroup") {
     forAll { (values: List[String]) =>
-      val stream: Stream[Int] = Stream.emit(values).reduceSemigroup
+      val stream: Stream[String] = Stream.emit(values).reduceSemigroup
       val result = stream.toList
 
       // combineAll uses the monoid, not the semigroup, so the result of
