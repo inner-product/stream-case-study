@@ -205,7 +205,10 @@ class StreamSuite extends ScalaCheckSuite {
       val stream: Stream[Int] = Stream.emit(values).reduceSemigroup
       val result = stream.toList
 
-      assertEquals(result, List(values.combineAll))
+      // combineAll uses the monoid, not the semigroup, so the result of
+      // combineAll on the empty list is a list containing the identity element.
+      if (values.isEmpty) assertEquals(result, values)
+      else assertEquals(result, List(values.combineAll))
     }
   }
 
@@ -214,7 +217,10 @@ class StreamSuite extends ScalaCheckSuite {
       val stream: Stream[Int] = Stream.emit(values).reduceSemigroup
       val result = stream.toList
 
-      assertEquals(result, List(values.combineAll))
+      // combineAll uses the monoid, not the semigroup, so the result of
+      // combineAll on the empty list is a list containing the identity element.
+      if (values.isEmpty) assertEquals(result, values)
+      else assertEquals(result, List(values.combineAll))
     }
   }
 
