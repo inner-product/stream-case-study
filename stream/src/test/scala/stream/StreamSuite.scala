@@ -236,7 +236,7 @@ class StreamSuite extends ScalaCheckSuite {
   property("foldMap uses the Monoid for the type the value is mapped into") {
     forAll { (values: List[Int]) =>
       val stream: Stream[Option[Int]] =
-        Stream.emit(values).foldMap(x => Some(x))
+        Stream.emit(values).foldMap(x => Option(x))
       val result = stream.toList
 
       assertEquals(result, List(values.foldMap[Option[Int]](x => Some(x))))
